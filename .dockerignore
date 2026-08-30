@@ -1,0 +1,33 @@
+# Never send credentials, sessions, or repository metadata to the builder.
+.git
+.github
+.env*
+secrets
+*.session
+*.session-journal
+*.key
+*.pem
+a
+
+# Local environments, caches, and generated output.
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+build
+dist
+*.egg-info
+
+# Deployment files are not application runtime inputs.
+docker-compose*.yml
+compose*.yml
+app.json
+Procfile
+runtime.txt
+deploy/state
+deploy/releases
