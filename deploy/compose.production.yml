@@ -2,13 +2,8 @@ name: blotibot
 
 services:
   worker:
-    image: ${BLOTIBOT_IMAGE:-blotibot:local}
-    build:
-      context: .
-      args:
-        SOURCE_URL: ${SOURCE_URL:-https://github.com/rserag/bloti-bot}
-        VCS_REF: ${VCS_REF:-local}
-        VERSION: ${APP_VERSION:-dev}
+    image: ${BLOTIBOT_IMAGE:?set BLOTIBOT_IMAGE to an immutable GHCR digest}
+    pull_policy: never
     platform: linux/amd64
     init: true
     user: "1000:1000"
@@ -21,7 +16,7 @@ services:
     environment:
       API_HASH_FILE: /run/secrets/api_hash
       API_ID_FILE: /run/secrets/api_id
-      APP_VERSION: ${APP_VERSION:-dev}
+      APP_VERSION: ${APP_VERSION:?set APP_VERSION to the deployed revision}
       BOT_TOKEN_FILE: /run/secrets/bot_token
       HEARTBEAT_INTERVAL_SECONDS: "15"
       HEARTBEAT_MAX_AGE_SECONDS: "60"
@@ -29,7 +24,7 @@ services:
       MAX_ACTIVE_CHATS: ${MAX_ACTIVE_CHATS:-4}
       MESSAGE_DELAY_SECONDS: ${MESSAGE_DELAY_SECONDS:-1}
       SESSION_PATH: /var/lib/blotibot/blotibot
-      SOURCE_URL: ${SOURCE_URL:-https://github.com/rserag/bloti-bot}
+      SOURCE_URL: https://github.com/rserag/bloti-bot
     secrets:
       - api_hash
       - api_id
@@ -52,11 +47,11 @@ services:
 
 secrets:
   api_hash:
-    file: ./secrets/api_hash
+    file: /opt/blotibot/secrets/api_hash
   api_id:
-    file: ./secrets/api_id
+    file: /opt/blotibot/secrets/api_id
   bot_token:
-    file: ./secrets/bot_token
+    file: /opt/blotibot/secrets/bot_token
 
 volumes:
   session-data:

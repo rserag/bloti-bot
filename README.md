@@ -1,95 +1,121 @@
-<h1 align= center>PingAllBot - TeLeTiPs</h1>
-<h3 align = center>Powerful Telegram bot to get everyone's attention by mentioning all members in the chat.
-<br>PingAll bot has some additional cool features and also it can work in channels.
-    
-<br>💥 Easy    ⚡️ Fast    ✨ Self Deployable</h3>
+# Bloti Bot
 
+[![Pipeline](https://github.com/rserag/bloti-bot/actions/workflows/pipeline.yml/badge.svg)](https://github.com/rserag/bloti-bot/actions/workflows/pipeline.yml)
 
-<p align="center">
-<a href="https://python.org"><img src="http://forthebadge.com/images/badges/made-with-python.svg" alt="made-with-python"></a>
-<br>
-    <img src="https://img.shields.io/github/stars/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Stars">
-    <img src="https://img.shields.io/github/forks/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Forks">
-    <img src="https://img.shields.io/github/watchers/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Watchers"> 
-<br>
-    <img src="https://img.shields.io/github/license/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="License">
-    <img src="https://img.shields.io/github/repo-size/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Repository Size">
-    <img src="https://img.shields.io/github/contributors/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Contributors">
-    <img src="https://img.shields.io/github/issues/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Issues">
-</p>  
+Bloti Bot is a Telegram group utility for mentioning members, listing administrators and bots,
+and removing deleted accounts. This repository is a maintained modernization of the original
+Ping All Bot by TeLe TiPs.
 
+The migration branch replaces the unmaintained Pyrogram client with Telethon and separates
+Telegram transport code from command behavior. Admin checks, per-chat jobs, cancellation,
+HTML escaping, and cleanup are covered by offline tests.
 
-<h1 align="center">
-    <img src="pingallboticon.png" alt="PingAll Bot logo" width="200">
-    <br>
-    Ping All Bot
-</h1>
+## Commands
 
-    
-## ⚒ Config Vars
+| Command | Who can use it | Purpose |
+| --- | --- | --- |
+| `/ping [message]`, `/all` | Chat admins | Mention non-bot, non-deleted members in batches |
+| `/remove`, `/clean` | Chat admins; bot must be admin | Remove deleted accounts |
+| `/stop`, `/cancel` | Chat admins | Cancel only this chat's active job |
+| `/admins`, `/staff` | Everyone | List visible administrators |
+| `/bots` | Everyone | List bots |
+| `/help` | Everyone | Show command help |
+| `/source` | Everyone | Link to this repository |
+| `/version` | Everyone | Show the running version |
 
-1. `API_ID` : Telegram API_ID, get it from my.telegram.org/apps
-2. `API_HASH` : Telegram API_ID, get it from my.telegram.org/apps
-3. `BOT_TOKEN` : A Valid Telegram Bot Token, get it from @Botfather
+## Configuration
 
+Create Telegram application credentials at [my.telegram.org](https://my.telegram.org) and a bot
+token through BotFather. Copy `.env.example` for the complete list of settings, but never commit a
+populated `.env` file.
 
-## 📄 Commands
+Required settings:
 
-### 🛎 ping , all
+- `API_ID`
+- `API_HASH`
+- `BOT_TOKEN`
 
-- To get everyone's attention by mentioning all members in the chat.
+Each required secret also supports a file-based form: `API_ID_FILE`, `API_HASH_FILE`, and
+`BOT_TOKEN_FILE`. File-mounted secrets are preferred for production deployments.
 
+Optional settings:
+
+- `SESSION_PATH` (default `/var/lib/blotibot/blotibot`)
+- `SOURCE_URL`
+- `APP_VERSION`
+- `MAX_ACTIVE_CHATS` (default `4`)
+- `MESSAGE_DELAY_SECONDS` (default `1`)
+
+## Local development
+
+Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are recommended.
+
+```console
+uv sync --all-groups
+uv run ruff check .
+uv run mypy
+uv run pytest
 ```
-/ping <input>    
+
+To run the bot locally, export the required settings and use:
+
+```console
+uv run blotibot
 ```
-    
-### 👻 remove , clean
 
-- To remove all deleted accounts from the chat.
+Tests use a fake Telegram gateway and never require real credentials or network access.
 
-### 👮🏻 admins , staff
+## Container deployment
 
-- To mention all admins while getting the full non-anonymous admin list of the chat.
+The production-oriented Compose definition builds a digest-pinned Python 3.12/Alpine image for
+`linux/amd64`.
+The bot runs as UID/GID 1000 with no Linux capabilities, a read-only root filesystem, bounded
+resources and logs, a persistent session volume, and an event-loop heartbeat health check. It
+publishes no network ports.
 
-### 👾 bots 
+Compose loads credentials from three files that are excluded from the build context and Git:
 
-- To get the full bot list of the chat.
-
-### 🛑 stop , cancel
-
-- To stop an on going process in the chat.
- 
- 
-## ☁️ Deployment Methods
-
-### Heroku
-
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/teletips/PingAllBot-TeLeTiPs)
-    
-### Okteto
-
-[![Develop on Okteto](https://okteto.com/develop-okteto.svg)](https://cloud.okteto.com)
-    
-## ⭐️ Credits
-  
-- [TeLe TiPs](https://github.com/teletips)
-- [Thakshaka](https://t.me/thakshakar)
-- [Pyrogram](https://github.com/pyrogram/pyrogram)
-
-
-## 🚨 Warning
-
-- Changing the code is NOT ALLOWED!  
-- Everyone is permitted to copy this work, but you MUST include the following in your README document.
-
+```text
+secrets/api_id
+secrets/api_hash
+secrets/bot_token
 ```
+
+On the deployment host, create `secrets/` with mode `0700` and each secret file with mode `0600`,
+owned by UID/GID 1000. Put only the raw credential value in each corresponding file. Validate and
+build without displaying their contents:
+
+```console
+docker compose config --quiet
+docker compose build --pull
+docker compose up --detach --wait
+```
+
+The health check is based on a heartbeat written only while Telethon reports an active connection.
+It detects a blocked event loop or disconnected client; an interactive Telegram command remains the
+final end-to-end verification.
+
+The `main` pipeline tests the application, validates deployment configuration, builds and scans the
+container, publishes an immutable GHCR digest with provenance, and pauses at the protected
+`production` environment before deployment. Padval accepts only the forced deployment command and
+automatically restores the prior healthy release if verification fails. See
+[deploy/README.md](deploy/README.md) for the operational model.
+
+## Source layout
+
+- `src/blotibot/service.py` contains command behavior.
+- `src/blotibot/telethon_gateway.py` contains Telegram API operations.
+- `src/blotibot/router.py` maps messages to commands.
+- `tests/` contains offline behavioral tests.
+- `pingallbot.py` remains as a compatibility entry point during the deployment migration.
+
 ## Credits
-- [Ping All Bot by TeLe TiPs] (https://github.com/teletips/PingAllBot-TeLeTiPs)
-```
 
+- [Ping All Bot by TeLe TiPs](https://github.com/teletips/PingAllBot-TeLeTiPs)
+- [Telethon](https://github.com/LonamiWebs/Telethon)
 
-## ⚖️ License
-  
-Ping All is licensed under the [GNU Affero General Public License v3.0](https://github.com/teletips/PingAllBot-TeLeTiPs/blob/main/LICENSE)
+## License
 
-Copyright ©️ 2022 TeLe TiPs. All Rights Reserved
+Licensed under the [GNU Affero General Public License v3.0](LICENSE), consistent with the
+upstream project. The original attribution and modification notice are preserved in
+[NOTICE](NOTICE).

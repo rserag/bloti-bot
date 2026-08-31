@@ -1,0 +1,12 @@
+# Default ownership
+* @rserag
+
+# Security, dependencies, container runtime, and future deployment automation
+/.github/ @rserag
+/Dockerfile @rserag
+/docker-compose.yml @rserag
+/requirements.txt @rserag
+/uv.lock @rserag
+/src/blotibot/config.py @rserag
+/src/blotibot/healthcheck.py @rserag
+/deploy/ @rserag

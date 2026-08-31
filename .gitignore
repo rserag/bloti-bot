@@ -1,0 +1,33 @@
+# Local credentials and runtime authentication material
+.env
+.env.*
+!.env.example
+secrets/
+*.session
+*.session-journal
+*.key
+*.pem
+/a
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Build and editor artifacts
+build/
+dist/
+*.egg-info/
+.DS_Store
+.idea/
+.vscode/
+
+# Local deployment state
+deploy/state/
+deploy/releases/

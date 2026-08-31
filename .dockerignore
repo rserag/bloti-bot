@@ -1,0 +1,8 @@
+# Send only the runtime inputs required by the Dockerfile.
+**
+!Dockerfile
+!requirements.txt
+!src/
+!src/**
+src/**/__pycache__/
+src/**/*.py[cod]
