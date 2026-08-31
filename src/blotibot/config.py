@@ -42,6 +42,8 @@ class Settings:
     version: str = "0.1.0"
     max_active_chats: int = 4
     message_delay_seconds: float = 1.0
+    heartbeat_path: Path = Path("/run/blotibot/heartbeat")
+    heartbeat_interval_seconds: float = 15.0
 
     @classmethod
     def from_env(cls, environment: Mapping[str, str] | None = None) -> Settings:
@@ -55,6 +57,7 @@ class Settings:
         try:
             max_active_chats = int(env.get("MAX_ACTIVE_CHATS", "4"))
             message_delay_seconds = float(env.get("MESSAGE_DELAY_SECONDS", "1"))
+            heartbeat_interval_seconds = float(env.get("HEARTBEAT_INTERVAL_SECONDS", "15"))
         except ValueError as exc:
             raise ConfigError("Concurrency and delay settings must be numeric") from exc
 
@@ -64,6 +67,8 @@ class Settings:
             raise ConfigError("MAX_ACTIVE_CHATS must be positive")
         if message_delay_seconds < 0:
             raise ConfigError("MESSAGE_DELAY_SECONDS cannot be negative")
+        if heartbeat_interval_seconds <= 0:
+            raise ConfigError("HEARTBEAT_INTERVAL_SECONDS must be positive")
 
         return cls(
             api_id=api_id,
@@ -74,4 +79,6 @@ class Settings:
             version=env.get("APP_VERSION", "0.1.0"),
             max_active_chats=max_active_chats,
             message_delay_seconds=message_delay_seconds,
+            heartbeat_path=Path(env.get("HEARTBEAT_PATH", "/run/blotibot/heartbeat")),
+            heartbeat_interval_seconds=heartbeat_interval_seconds,
         )

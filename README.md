@@ -63,6 +63,36 @@ uv run blotibot
 
 Tests use a fake Telegram gateway and never require real credentials or network access.
 
+## Container deployment
+
+The production-oriented Compose definition builds a digest-pinned Python 3.12/Alpine image for
+`linux/amd64`.
+The bot runs as UID/GID 1000 with no Linux capabilities, a read-only root filesystem, bounded
+resources and logs, a persistent session volume, and an event-loop heartbeat health check. It
+publishes no network ports.
+
+Compose loads credentials from three files that are excluded from the build context and Git:
+
+```text
+secrets/api_id
+secrets/api_hash
+secrets/bot_token
+```
+
+On the deployment host, create `secrets/` with mode `0700` and each secret file with mode `0600`,
+owned by UID/GID 1000. Put only the raw credential value in each corresponding file. Validate and
+build without displaying their contents:
+
+```console
+docker compose config --quiet
+docker compose build --pull
+docker compose up --detach --wait
+```
+
+The health check is based on a heartbeat written only while Telethon reports an active connection.
+It detects a blocked event loop or disconnected client; an interactive Telegram command remains the
+final end-to-end verification.
+
 ## Source layout
 
 - `src/blotibot/service.py` contains command behavior.

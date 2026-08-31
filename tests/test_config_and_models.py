@@ -43,6 +43,15 @@ def test_settings_load_secrets_from_files_without_exposing_them(tmp_path: Path) 
             },
             "positive",
         ),
+        (
+            {
+                "API_ID": "1",
+                "API_HASH": "x",
+                "BOT_TOKEN": "y",
+                "HEARTBEAT_INTERVAL_SECONDS": "0",
+            },
+            "HEARTBEAT_INTERVAL_SECONDS",
+        ),
     ],
 )
 def test_settings_reject_invalid_values(environment: dict[str, str], message: str) -> None:

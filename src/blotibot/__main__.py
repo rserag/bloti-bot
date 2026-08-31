@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
+from pathlib import Path
 
 from telethon import TelegramClient
 
@@ -19,6 +21,20 @@ def configure_logging() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     logging.getLogger("telethon").setLevel(logging.WARNING)
+
+
+async def maintain_heartbeat(
+    client: TelegramClient,
+    path: Path,
+    interval_seconds: float,
+) -> None:
+    await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
+    while True:
+        if client.is_connected():
+            await asyncio.to_thread(path.touch)
+        else:
+            await asyncio.to_thread(path.unlink, missing_ok=True)
+        await asyncio.sleep(interval_seconds)
 
 
 async def run() -> None:
@@ -41,7 +57,22 @@ async def run() -> None:
     )
     register_handlers(client, service)
     logging.getLogger(__name__).info("Bloti Bot started")
-    await client.run_until_disconnected()
+    heartbeat = asyncio.create_task(
+        maintain_heartbeat(
+            client,
+            settings.heartbeat_path,
+            settings.heartbeat_interval_seconds,
+        )
+    )
+    try:
+        await client.run_until_disconnected()
+    finally:
+        heartbeat.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat
+        await asyncio.to_thread(settings.heartbeat_path.unlink, missing_ok=True)
+        if client.is_connected():
+            await client.disconnect()
 
 
 def main() -> None:
