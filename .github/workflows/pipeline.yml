@@ -46,13 +46,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate Compose files
         env:
-          APP_VERSION: 0000000000000000000000000000000000000000
           BLOTIBOT_CREDENTIALS_FILE: ${{ runner.temp }}/blotibot-ci.env
-          BLOTIBOT_IMAGE: ghcr.io/rserag/bloti-bot@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          RELEASE_RECORD: ${{ runner.temp }}/blotibot-release.env
         run: |
           install -m 600 /dev/null "$BLOTIBOT_CREDENTIALS_FILE"
+          printf '%s\n' \
+            'APP_VERSION=0000000000000000000000000000000000000000' \
+            'BLOTIBOT_IMAGE=ghcr.io/rserag/bloti-bot@sha256:0000000000000000000000000000000000000000000000000000000000000000' \
+            >"$RELEASE_RECORD"
           docker compose config --quiet
-          docker compose --file deploy/compose.production.yml config --quiet
+          docker compose --env-file "$RELEASE_RECORD" \
+            --file deploy/compose.production.yml config --quiet
       - name: Validate deployment scripts
         run: |
           bash -n deploy/blotibot-deploy deploy/blotibot-deploy-ssh
