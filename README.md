@@ -1,5 +1,7 @@
 # Bloti Bot
 
+[![Pipeline](https://github.com/rserag/bloti-bot/actions/workflows/pipeline.yml/badge.svg)](https://github.com/rserag/bloti-bot/actions/workflows/pipeline.yml)
+
 Bloti Bot is a Telegram group utility for mentioning members, listing administrators and bots,
 and removing deleted accounts. This repository is a maintained modernization of the original
 Ping All Bot by TeLe TiPs.
@@ -92,6 +94,12 @@ docker compose up --detach --wait
 The health check is based on a heartbeat written only while Telethon reports an active connection.
 It detects a blocked event loop or disconnected client; an interactive Telegram command remains the
 final end-to-end verification.
+
+The `main` pipeline tests the application, validates deployment configuration, builds and scans the
+container, publishes an immutable GHCR digest with provenance, and pauses at the protected
+`production` environment before deployment. Padval accepts only the forced deployment command and
+automatically restores the prior healthy release if verification fails. See
+[deploy/README.md](deploy/README.md) for the operational model.
 
 ## Source layout
 

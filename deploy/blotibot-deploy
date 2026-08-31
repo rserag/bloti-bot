@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly compose_file=/opt/blotibot/compose.yml
+readonly secret_dir=/opt/blotibot/secrets
+readonly state_dir=/opt/blotibot/state
+readonly release_dir=/opt/blotibot/releases
+readonly current_env="$state_dir/current.env"
+readonly previous_env="$state_dir/previous.env"
+readonly bootstrap_compose=/home/c/blotibot/docker-compose.yml
+readonly lock_file=/run/lock/blotibot-deploy.lock
+
+release_revision=
+release_image=
+
+log() {
+  printf '[blotibot-deploy] %s\n' "$*"
+  logger -t blotibot-deploy -- "$*"
+}
+
+die() {
+  log "ERROR: $*"
+  exit 1
+}
+
+validate_revision() {
+  [[ $1 =~ ^[0-9a-f]{40}$ ]] || die "invalid Git revision"
+}
+
+validate_image() {
+  [[ $1 =~ ^ghcr\.io/rserag/bloti-bot@sha256:[0-9a-f]{64}$ ]] ||
+    die "invalid image reference"
+}
+
+validate_secret_file() {
+  local path=$1
+  local mode owner
+
+  [[ -f $path && ! -L $path ]] || die "required secret file is missing"
+  mode=$(stat -c '%a' "$path")
+  owner=$(stat -c '%u:%g' "$path")
+  [[ $mode == 600 ]] || die "secret files must have mode 600"
+  [[ $owner == 1000:1000 ]] || die "secret files must be owned by UID/GID 1000"
+}
+
+validate_runtime_inputs() {
+  local directory_mode directory_owner
+
+  [[ -d $secret_dir && ! -L $secret_dir ]] || die "secret directory is missing"
+  directory_mode=$(stat -c '%a' "$secret_dir")
+  directory_owner=$(stat -c '%u:%g' "$secret_dir")
+  [[ $directory_mode == 700 ]] || die "secret directory must have mode 700"
+  [[ $directory_owner == 0:0 ]] || die "secret directory must be owned by root"
+  validate_secret_file "$secret_dir/api_id"
+  validate_secret_file "$secret_dir/api_hash"
+  validate_secret_file "$secret_dir/bot_token"
+}
+
+read_release() {
+  local path=$1
+  local first second extra
+
+  [[ -f $path && ! -L $path ]] || die "release record is missing"
+  {
+    IFS= read -r first
+    IFS= read -r second
+    IFS= read -r extra || true
+  } <"$path"
+  [[ $first == REVISION=* && $second == IMAGE=* && -z $extra ]] ||
+    die "release record is malformed"
+
+  release_revision=${first#REVISION=}
+  release_image=${second#IMAGE=}
+  validate_revision "$release_revision"
+  validate_image "$release_image"
+}
+
+compose() {
+  local release_env=$1
+  shift
+  docker compose \
+    --project-name blotibot \
+    --env-file "$release_env" \
+    --file "$compose_file" \
+    "$@"
+}
+
+verify_container() {
+  local expected_image=$1
+  local container_id configured_image health restarts_before restarts_after
+
+  container_id=$(docker compose --project-name blotibot --file "$compose_file" ps -q worker)
+  [[ -n $container_id ]] || return 1
+  configured_image=$(docker inspect --format '{{.Config.Image}}' "$container_id")
+  [[ $configured_image == "$expected_image" ]] || return 1
+  health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id")
+  [[ $health == healthy ]] || return 1
+  restarts_before=$(docker inspect --format '{{.RestartCount}}' "$container_id")
+  sleep 15
+  health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id")
+  restarts_after=$(docker inspect --format '{{.RestartCount}}' "$container_id")
+  [[ $health == healthy && $restarts_after == "$restarts_before" ]]
+}
+
+activate_release() {
+  local release_env=$1
+
+  read_release "$release_env"
+  compose "$release_env" config --quiet || return 1
+  docker pull "$release_image" || return 1
+  compose "$release_env" up --detach --no-build --wait --wait-timeout 180 || return 1
+  verify_container "$release_image"
+}
+
+restore_bootstrap() {
+  local container_id status restarts_before restarts_after
+
+  [[ -r $bootstrap_compose ]] || return 1
+  log "restoring the pre-CI Bloti Bot stack"
+  docker compose \
+    --project-name blotibot \
+    --file "$bootstrap_compose" \
+    up --detach --no-build || return 1
+  container_id=$(docker compose \
+    --project-name blotibot \
+    --file "$bootstrap_compose" \
+    ps -q worker)
+  [[ -n $container_id ]] || return 1
+  status=$(docker inspect --format '{{.State.Status}}' "$container_id")
+  [[ $status == running ]] || return 1
+  restarts_before=$(docker inspect --format '{{.RestartCount}}' "$container_id")
+  sleep 15
+  status=$(docker inspect --format '{{.State.Status}}' "$container_id")
+  restarts_after=$(docker inspect --format '{{.RestartCount}}' "$container_id")
+  [[ $status == running && $restarts_after == "$restarts_before" ]]
+}
+
+deploy_release() {
+  local revision=$1
+  local image=$2
+  local candidate
+
+  validate_revision "$revision"
+  validate_image "$image"
+  validate_runtime_inputs
+
+  candidate=$(mktemp "$state_dir/candidate.XXXXXX")
+  chmod 600 "$candidate"
+  {
+    printf 'REVISION=%s\n' "$revision"
+    printf 'IMAGE=%s\n' "$image"
+  } >"$candidate"
+
+  if activate_release "$candidate"; then
+    if [[ -f $current_env ]]; then
+      cp --preserve=mode "$current_env" "$previous_env"
+    fi
+    install -m 600 "$candidate" "$release_dir/$revision.env"
+    install -m 600 "$candidate" "$current_env"
+    rm -f "$candidate"
+    log "release $revision is healthy"
+    return 0
+  fi
+
+  log "release $revision failed; starting automatic rollback"
+  if [[ -f $current_env ]] && activate_release "$current_env"; then
+    rm -f "$candidate"
+    log "restored the previous immutable release"
+    return 1
+  fi
+  if ! restore_bootstrap; then
+    rm -f "$candidate"
+    die "candidate and rollback both failed"
+  fi
+  rm -f "$candidate"
+  log "restored the pre-CI Bloti Bot stack"
+  return 1
+}
+
+rollback_release() {
+  local rollback_candidate
+
+  validate_runtime_inputs
+  if [[ ! -f $previous_env ]]; then
+    [[ -f $current_env ]] || die "no immutable release is available to roll back"
+    restore_bootstrap || die "the pre-CI rollback failed"
+    install -m 600 "$current_env" "$previous_env"
+    rm -f "$current_env"
+    log "rollback to the pre-CI Bloti Bot stack completed"
+    return 0
+  fi
+
+  rollback_candidate=$(mktemp "$state_dir/rollback.XXXXXX")
+  cp --preserve=mode "$previous_env" "$rollback_candidate"
+  if ! activate_release "$rollback_candidate"; then
+    rm -f "$rollback_candidate"
+    die "rollback candidate failed health verification; current release remains configured"
+  fi
+
+  if [[ -f $current_env ]]; then
+    cp --preserve=mode "$current_env" "$previous_env"
+  fi
+  install -m 600 "$rollback_candidate" "$current_env"
+  rm -f "$rollback_candidate"
+  log "rollback completed successfully"
+}
+
+show_status() {
+  local container_id state health revision=bootstrap
+
+  if [[ -f $current_env ]]; then
+    read_release "$current_env"
+    revision=$release_revision
+  fi
+  container_id=$(docker ps --filter name='^/blotibot-worker-1$' --format '{{.ID}}')
+  if [[ -z $container_id ]]; then
+    printf 'revision=%s container=absent health=none\n' "$revision"
+    return 0
+  fi
+  state=$(docker inspect --format '{{.State.Status}}' "$container_id")
+  health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id")
+  printf 'revision=%s container=%s health=%s\n' "$revision" "$state" "$health"
+}
+
+main() {
+  [[ ${1-} == --request && $# == 2 ]] || die "invalid invocation"
+  [[ -r $compose_file ]] || die "production Compose file is missing"
+
+  install -d -m 700 "$state_dir" "$release_dir"
+  exec 9>"$lock_file"
+  flock -n 9 || die "another Bloti Bot deployment is in progress"
+
+  local request=$2
+  local -a words
+  read -r -a words <<<"$request"
+
+  case ${words[0]-} in
+    release)
+      [[ ${#words[@]} == 3 ]] || die "release requires a revision and image reference"
+      deploy_release "${words[1]}" "${words[2]}"
+      ;;
+    rollback)
+      [[ ${#words[@]} == 1 ]] || die "rollback takes no arguments"
+      rollback_release
+      ;;
+    status)
+      [[ ${#words[@]} == 1 ]] || die "status takes no arguments"
+      show_status
+      ;;
+    *)
+      die "unsupported deployment request"
+      ;;
+  esac
+}
+
+main "$@"
