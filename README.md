@@ -1,95 +1,83 @@
-<h1 align= center>PingAllBot - TeLeTiPs</h1>
-<h3 align = center>Powerful Telegram bot to get everyone's attention by mentioning all members in the chat.
-<br>PingAll bot has some additional cool features and also it can work in channels.
-    
-<br>💥 Easy    ⚡️ Fast    ✨ Self Deployable</h3>
+# Bloti Bot
 
+Bloti Bot is a Telegram group utility for mentioning members, listing administrators and bots,
+and removing deleted accounts. This repository is a maintained modernization of the original
+Ping All Bot by TeLe TiPs.
 
-<p align="center">
-<a href="https://python.org"><img src="http://forthebadge.com/images/badges/made-with-python.svg" alt="made-with-python"></a>
-<br>
-    <img src="https://img.shields.io/github/stars/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Stars">
-    <img src="https://img.shields.io/github/forks/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Forks">
-    <img src="https://img.shields.io/github/watchers/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Watchers"> 
-<br>
-    <img src="https://img.shields.io/github/license/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="License">
-    <img src="https://img.shields.io/github/repo-size/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Repository Size">
-    <img src="https://img.shields.io/github/contributors/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Contributors">
-    <img src="https://img.shields.io/github/issues/teletips/PingAllBot-TeLeTiPs?style=for-the-badge" alt="Issues">
-</p>  
+The migration branch replaces the unmaintained Pyrogram client with Telethon and separates
+Telegram transport code from command behavior. Admin checks, per-chat jobs, cancellation,
+HTML escaping, and cleanup are covered by offline tests.
 
+## Commands
 
-<h1 align="center">
-    <img src="pingallboticon.png" alt="PingAll Bot logo" width="200">
-    <br>
-    Ping All Bot
-</h1>
+| Command | Who can use it | Purpose |
+| --- | --- | --- |
+| `/ping [message]`, `/all` | Chat admins | Mention non-bot, non-deleted members in batches |
+| `/remove`, `/clean` | Chat admins; bot must be admin | Remove deleted accounts |
+| `/stop`, `/cancel` | Chat admins | Cancel only this chat's active job |
+| `/admins`, `/staff` | Everyone | List visible administrators |
+| `/bots` | Everyone | List bots |
+| `/help` | Everyone | Show command help |
+| `/source` | Everyone | Link to this repository |
+| `/version` | Everyone | Show the running version |
 
-    
-## ⚒ Config Vars
+## Configuration
 
-1. `API_ID` : Telegram API_ID, get it from my.telegram.org/apps
-2. `API_HASH` : Telegram API_ID, get it from my.telegram.org/apps
-3. `BOT_TOKEN` : A Valid Telegram Bot Token, get it from @Botfather
+Create Telegram application credentials at [my.telegram.org](https://my.telegram.org) and a bot
+token through BotFather. Copy `.env.example` for the complete list of settings, but never commit a
+populated `.env` file.
 
+Required settings:
 
-## 📄 Commands
+- `API_ID`
+- `API_HASH`
+- `BOT_TOKEN`
 
-### 🛎 ping , all
+Each required secret also supports a file-based form: `API_ID_FILE`, `API_HASH_FILE`, and
+`BOT_TOKEN_FILE`. File-mounted secrets are preferred for production deployments.
 
-- To get everyone's attention by mentioning all members in the chat.
+Optional settings:
 
+- `SESSION_PATH` (default `/var/lib/blotibot/blotibot`)
+- `SOURCE_URL`
+- `APP_VERSION`
+- `MAX_ACTIVE_CHATS` (default `4`)
+- `MESSAGE_DELAY_SECONDS` (default `1`)
+
+## Local development
+
+Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are recommended.
+
+```console
+uv sync --all-groups
+uv run ruff check .
+uv run mypy
+uv run pytest
 ```
-/ping <input>    
+
+To run the bot locally, export the required settings and use:
+
+```console
+uv run blotibot
 ```
-    
-### 👻 remove , clean
 
-- To remove all deleted accounts from the chat.
+Tests use a fake Telegram gateway and never require real credentials or network access.
 
-### 👮🏻 admins , staff
+## Source layout
 
-- To mention all admins while getting the full non-anonymous admin list of the chat.
+- `src/blotibot/service.py` contains command behavior.
+- `src/blotibot/telethon_gateway.py` contains Telegram API operations.
+- `src/blotibot/router.py` maps messages to commands.
+- `tests/` contains offline behavioral tests.
+- `pingallbot.py` remains as a compatibility entry point during the deployment migration.
 
-### 👾 bots 
-
-- To get the full bot list of the chat.
-
-### 🛑 stop , cancel
-
-- To stop an on going process in the chat.
- 
- 
-## ☁️ Deployment Methods
-
-### Heroku
-
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/teletips/PingAllBot-TeLeTiPs)
-    
-### Okteto
-
-[![Develop on Okteto](https://okteto.com/develop-okteto.svg)](https://cloud.okteto.com)
-    
-## ⭐️ Credits
-  
-- [TeLe TiPs](https://github.com/teletips)
-- [Thakshaka](https://t.me/thakshakar)
-- [Pyrogram](https://github.com/pyrogram/pyrogram)
-
-
-## 🚨 Warning
-
-- Changing the code is NOT ALLOWED!  
-- Everyone is permitted to copy this work, but you MUST include the following in your README document.
-
-```
 ## Credits
-- [Ping All Bot by TeLe TiPs] (https://github.com/teletips/PingAllBot-TeLeTiPs)
-```
 
+- [Ping All Bot by TeLe TiPs](https://github.com/teletips/PingAllBot-TeLeTiPs)
+- [Telethon](https://github.com/LonamiWebs/Telethon)
 
-## ⚖️ License
-  
-Ping All is licensed under the [GNU Affero General Public License v3.0](https://github.com/teletips/PingAllBot-TeLeTiPs/blob/main/LICENSE)
+## License
 
-Copyright ©️ 2022 TeLe TiPs. All Rights Reserved
+Licensed under the [GNU Affero General Public License v3.0](LICENSE), consistent with the
+upstream project. The original attribution and modification notice are preserved in
+[NOTICE](NOTICE).
