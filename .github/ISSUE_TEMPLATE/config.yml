@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/rserag/bloti-bot/security/advisories/new
+    about: Report suspected vulnerabilities without disclosing them publicly.
+  - name: Support guidance
+    url: https://github.com/rserag/bloti-bot/blob/main/SUPPORT.md
+    about: Read what information to provide and what sensitive data to omit.
