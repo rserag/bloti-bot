@@ -101,6 +101,11 @@ container, publishes an immutable GHCR digest with provenance, and pauses at the
 automatically restores the prior healthy release if verification fails. See
 [deploy/README.md](deploy/README.md) for the operational model.
 
+The initial Padval cutover temporarily references its existing mode-`0600` legacy `.env` file in
+place, without sending credential values through GitHub or baking them into the image. This
+migration-only bridge should be replaced by the file-secret model above when the credentials are
+rotated.
+
 ## Source layout
 
 - `src/blotibot/service.py` contains command behavior.

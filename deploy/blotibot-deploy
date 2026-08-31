@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 readonly compose_file=/opt/blotibot/compose.yml
-readonly secret_dir=/opt/blotibot/secrets
+readonly legacy_credentials_file=/home/c/blotibot/.env
 readonly state_dir=/opt/blotibot/state
 readonly release_dir=/opt/blotibot/releases
 readonly current_env="$state_dir/current.env"
@@ -32,28 +32,20 @@ validate_image() {
     die "invalid image reference"
 }
 
-validate_secret_file() {
+validate_credentials_file() {
   local path=$1
   local mode owner
 
-  [[ -f $path && ! -L $path ]] || die "required secret file is missing"
+  [[ $path == "$legacy_credentials_file" ]] || die "unexpected credentials file path"
+  [[ -f $path && ! -L $path ]] || die "credentials file is missing"
   mode=$(stat -c '%a' "$path")
   owner=$(stat -c '%u:%g' "$path")
-  [[ $mode == 600 ]] || die "secret files must have mode 600"
-  [[ $owner == 1000:1000 ]] || die "secret files must be owned by UID/GID 1000"
+  [[ $mode == 600 ]] || die "credentials file must have mode 600"
+  [[ $owner == 1000:1000 ]] || die "credentials file must be owned by UID/GID 1000"
 }
 
 validate_runtime_inputs() {
-  local directory_mode directory_owner
-
-  [[ -d $secret_dir && ! -L $secret_dir ]] || die "secret directory is missing"
-  directory_mode=$(stat -c '%a' "$secret_dir")
-  directory_owner=$(stat -c '%u:%g' "$secret_dir")
-  [[ $directory_mode == 700 ]] || die "secret directory must have mode 700"
-  [[ $directory_owner == 0:0 ]] || die "secret directory must be owned by root"
-  validate_secret_file "$secret_dir/api_id"
-  validate_secret_file "$secret_dir/api_hash"
-  validate_secret_file "$secret_dir/bot_token"
+  validate_credentials_file "$legacy_credentials_file"
 }
 
 read_release() {
@@ -78,7 +70,7 @@ read_release() {
 compose() {
   local release_env=$1
   shift
-  docker compose \
+  BLOTIBOT_CREDENTIALS_FILE="$legacy_credentials_file" docker compose \
     --project-name blotibot \
     --env-file "$release_env" \
     --file "$compose_file" \
