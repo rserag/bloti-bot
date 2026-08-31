@@ -78,10 +78,11 @@ compose() {
 }
 
 verify_container() {
-  local expected_image=$1
+  local release_env=$1
+  local expected_image=$2
   local container_id configured_image health restarts_before restarts_after
 
-  container_id=$(docker compose --project-name blotibot --file "$compose_file" ps -q worker)
+  container_id=$(compose "$release_env" ps -q worker)
   [[ -n $container_id ]] || return 1
   configured_image=$(docker inspect --format '{{.Config.Image}}' "$container_id")
   [[ $configured_image == "$expected_image" ]] || return 1
@@ -101,7 +102,7 @@ activate_release() {
   compose "$release_env" config --quiet || return 1
   docker pull "$release_image" || return 1
   compose "$release_env" up --detach --no-build --wait --wait-timeout 180 || return 1
-  verify_container "$release_image"
+  verify_container "$release_env" "$release_image"
 }
 
 restore_bootstrap() {
@@ -245,4 +246,6 @@ main() {
   esac
 }
 
-main "$@"
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi
