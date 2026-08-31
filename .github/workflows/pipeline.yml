@@ -59,7 +59,8 @@ jobs:
             --file deploy/compose.production.yml config --quiet
       - name: Validate deployment scripts
         run: |
-          bash -n deploy/blotibot-deploy deploy/blotibot-deploy-ssh
+          bash -n deploy/blotibot-deploy deploy/blotibot-deploy-ssh tests/test_deploy_controller.sh
+          bash tests/test_deploy_controller.sh
           grep -Eq '^blotibot-deploy ALL=\(root\) NOPASSWD: /usr/local/sbin/blotibot-deploy --request \*$' \
             deploy/blotibot-deploy.sudoers
 
