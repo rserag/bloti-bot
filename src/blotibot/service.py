@@ -122,8 +122,11 @@ class BotService:
                 await self.gateway.send(context, heading + " ".join(batch))
                 sent += len(batch)
 
-            status = "cancelled" if cancelled or job.cancelled.is_set() else "complete"
-            await self.gateway.send(context, f"Mention job {status}: {sent} members notified.")
+            if cancelled or job.cancelled.is_set():
+                await self.gateway.send(
+                    context,
+                    f"Mention job cancelled: {sent} members notified.",
+                )
         finally:
             await self.jobs.finish(context.chat_id, job)
 

@@ -95,7 +95,7 @@ async def test_ping_accepts_verified_anonymous_admin_context() -> None:
 
     await service(gateway).ping(anonymous_context, "")
 
-    assert gateway.sent[-1][1] == "Mention job complete: 1 members notified."
+    assert [message for _, message, _ in gateway.sent] == ["<a href=\"tg://user?id=1\">Member</a>"]
 
 
 async def test_ping_filters_and_batches_members_and_preserves_full_argument() -> None:
@@ -107,10 +107,34 @@ async def test_ping_filters_and_batches_members_and_preserves_full_argument() ->
     await service(gateway).ping(context(), "hello <everyone> today")
 
     messages = [message for _, message, _ in gateway.sent]
-    assert len(messages) == 4
-    assert all("<b>hello &lt;everyone&gt; today</b>" in message for message in messages[:3])
-    assert messages[-1] == "Mention job complete: 23 members notified."
+    assert len(messages) == 3
+    assert all("<b>hello &lt;everyone&gt; today</b>" in message for message in messages)
+    assert all(not message.startswith("Mention job complete:") for message in messages)
     assert "Bot" not in "".join(messages)
+
+
+async def test_ping_keeps_cancellation_feedback() -> None:
+    gateway = FakeGateway()
+    gateway.admins.add((100, 7))
+    gateway.members = [Member(i, first_name=f"User {i}") for i in range(1, 24)]
+    bot: BotService
+
+    async def cancel_after_first_batch(_: float) -> None:
+        await bot.jobs.cancel(100)
+
+    bot = BotService(
+        gateway,
+        source_url="https://github.com/rserag/bloti-bot",
+        version="test",
+        message_delay_seconds=0,
+        sleep=cancel_after_first_batch,
+    )
+
+    await bot.ping(context(), "")
+
+    messages = [message for _, message, _ in gateway.sent]
+    assert len(messages) == 2
+    assert messages[-1] == "Mention job cancelled: 10 members notified."
 
 
 async def test_ping_releases_job_after_unexpected_failure() -> None:
