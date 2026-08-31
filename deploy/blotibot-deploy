@@ -58,11 +58,11 @@ read_release() {
     IFS= read -r second
     IFS= read -r extra || true
   } <"$path"
-  [[ $first == REVISION=* && $second == IMAGE=* && -z $extra ]] ||
+  [[ $first == APP_VERSION=* && $second == BLOTIBOT_IMAGE=* && -z $extra ]] ||
     die "release record is malformed"
 
-  release_revision=${first#REVISION=}
-  release_image=${second#IMAGE=}
+  release_revision=${first#APP_VERSION=}
+  release_image=${second#BLOTIBOT_IMAGE=}
   validate_revision "$release_revision"
   validate_image "$release_image"
 }
@@ -139,8 +139,8 @@ deploy_release() {
   candidate=$(mktemp "$state_dir/candidate.XXXXXX")
   chmod 600 "$candidate"
   {
-    printf 'REVISION=%s\n' "$revision"
-    printf 'IMAGE=%s\n' "$image"
+    printf 'APP_VERSION=%s\n' "$revision"
+    printf 'BLOTIBOT_IMAGE=%s\n' "$image"
   } >"$candidate"
 
   if activate_release "$candidate"; then
