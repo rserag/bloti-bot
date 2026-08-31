@@ -76,31 +76,27 @@ def service(gateway: FakeGateway) -> BotService:
     )
 
 
-async def test_ping_requires_admin() -> None:
-    gateway = FakeGateway()
-    await service(gateway).ping(context(), "hello")
-    assert [message for _, message, _ in gateway.sent] == [ADMIN_ONLY]
-
-
-async def test_ping_accepts_verified_anonymous_admin_context() -> None:
+async def test_ping_allows_non_admin() -> None:
     gateway = FakeGateway()
     gateway.members = [Member(1, first_name="Member")]
-    anonymous_context = CommandContext(
-        chat_id=100,
-        sender_id=100,
-        message_id=1,
-        chat_title="Test group",
-        is_anonymous_admin=True,
-    )
 
-    await service(gateway).ping(anonymous_context, "")
+    await service(gateway).ping(context(), "hello")
 
-    assert [message for _, message, _ in gateway.sent] == ["<a href=\"tg://user?id=1\">Member</a>"]
+    assert [message for _, message, _ in gateway.sent] == [
+        '<b>hello</b>\n<a href="tg://user?id=1">Member</a>'
+    ]
+
+
+async def test_stop_still_requires_admin() -> None:
+    gateway = FakeGateway()
+
+    await service(gateway).stop(context(), "")
+
+    assert [message for _, message, _ in gateway.sent] == [ADMIN_ONLY]
 
 
 async def test_ping_filters_and_batches_members_and_preserves_full_argument() -> None:
     gateway = FakeGateway()
-    gateway.admins.add((100, 7))
     gateway.members = [Member(i, first_name=f"User {i}") for i in range(1, 24)]
     gateway.members.extend([Member(24, first_name="Bot", is_bot=True), Member(25, is_deleted=True)])
 
@@ -115,7 +111,6 @@ async def test_ping_filters_and_batches_members_and_preserves_full_argument() ->
 
 async def test_ping_keeps_cancellation_feedback() -> None:
     gateway = FakeGateway()
-    gateway.admins.add((100, 7))
     gateway.members = [Member(i, first_name=f"User {i}") for i in range(1, 24)]
     bot: BotService
 
@@ -139,7 +134,6 @@ async def test_ping_keeps_cancellation_feedback() -> None:
 
 async def test_ping_releases_job_after_unexpected_failure() -> None:
     gateway = FakeGateway()
-    gateway.admins.add((100, 7))
     gateway.members = [Member(i, first_name=f"User {i}") for i in range(1, 12)]
     gateway.fail_send_number = 1
     bot = service(gateway)
@@ -179,3 +173,14 @@ async def test_empty_admin_and_bot_lists_are_handled() -> None:
         "No visible administrators were found.",
         "No bots were found in this chat.",
     ]
+
+
+async def test_help_describes_open_mentions_and_restricted_admin_actions() -> None:
+    gateway = FakeGateway()
+
+    await service(gateway).help(context(), "")
+
+    message = gateway.sent[0][1]
+    assert "/ping [message], /all — mention non-bot members\n" in message
+    assert "/remove — remove deleted accounts (admins only)\n" in message
+    assert "/stop — cancel this chat's active job (admins only)\n" in message

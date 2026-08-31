@@ -14,7 +14,7 @@ HTML escaping, and cleanup are covered by offline tests.
 
 | Command | Who can use it | Purpose |
 | --- | --- | --- |
-| `/ping [message]`, `/all` | Chat admins | Mention non-bot, non-deleted members in batches |
+| `/ping [message]`, `/all` | Everyone | Mention non-bot, non-deleted members in batches |
 | `/remove`, `/clean` | Chat admins; bot must be admin | Remove deleted accounts |
 | `/stop`, `/cancel` | Chat admins | Cancel only this chat's active job |
 | `/admins`, `/staff` | Everyone | List visible administrators |

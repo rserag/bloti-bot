@@ -94,8 +94,6 @@ class BotService:
         return True
 
     async def ping(self, context: CommandContext, argument: str) -> None:
-        if not await self._ensure_admin(context):
-            return
         job = await self._start_job(context)
         if job is None:
             return
@@ -233,7 +231,7 @@ class BotService:
         await self.gateway.send(
             context,
             "<b>Bloti Bot commands</b>\n"
-            "/ping [message] — mention non-bot members (admins only)\n"
+            "/ping [message], /all — mention non-bot members\n"
             "/admins — list visible administrators\n"
             "/bots — list bots\n"
             "/remove — remove deleted accounts (admins only)\n"
