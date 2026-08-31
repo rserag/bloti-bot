@@ -18,8 +18,8 @@ blotibot = "blotibot.__main__:main"
 
 [dependency-groups]
 dev = [
-  "mypy>=1.17,<2",
-  "pytest>=8.4,<9",
+  "mypy>=1.17,<3",
+  "pytest>=8.4,<10",
   "pytest-asyncio>=1.1,<2",
   "ruff>=0.12,<1",
 ]
