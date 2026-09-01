@@ -1,4 +1,4 @@
-FROM python:3.12.14-alpine3.24@sha256:d09d15e60962ca365d1cd544a48773bac9d33f2fb1b00f2aa0deec78ade7dc31 AS dependencies
+FROM python:3.14.7-alpine3.24@sha256:3f818d6811ff5f3f2b5e5d836df3d25c2dd2e588d3b4981338a8ba17e422f74f AS dependencies
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
@@ -11,7 +11,7 @@ RUN python -m pip install \
     --target=/opt/python \
     --requirement=requirements.txt
 
-FROM python:3.12.14-alpine3.24@sha256:d09d15e60962ca365d1cd544a48773bac9d33f2fb1b00f2aa0deec78ade7dc31 AS runtime
+FROM python:3.14.7-alpine3.24@sha256:3f818d6811ff5f3f2b5e5d836df3d25c2dd2e588d3b4981338a8ba17e422f74f AS runtime
 
 ARG VERSION=dev
 ARG VCS_REF=unknown
@@ -32,7 +32,8 @@ ENV PYTHONPATH=/opt/python:/app/src \
     HEARTBEAT_INTERVAL_SECONDS=15 \
     HEARTBEAT_MAX_AGE_SECONDS=60
 
-RUN apk upgrade --no-cache libcrypto3 libssl3 \
+RUN python -m pip uninstall --yes pip \
+    && apk upgrade --no-cache libcrypto3 libssl3 \
     && addgroup -S -g 1000 blotibot \
     && adduser -S -D -H -u 1000 -h /nonexistent -s /sbin/nologin -G blotibot blotibot \
     && mkdir -p /app/src /var/lib/blotibot /run/blotibot \
