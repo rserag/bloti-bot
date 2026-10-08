@@ -15,6 +15,11 @@ HTML escaping, and cleanup are covered by offline tests.
 | Command | Who can use it | Purpose |
 | --- | --- | --- |
 | `/ping [message]`, `/all` | Everyone | Mention non-bot, non-deleted members in batches |
+| `/group create NAME`, `/group delete NAME` | Chat admins | Create or delete a named group in this chat |
+| `/group add NAME @user [@user …]` | Chat admins | Add current human chat members to a saved group |
+| `/group remove NAME @user [@user …]` | Chat admins | Remove members from a saved group (does not remove them from the chat) |
+| `/group show NAME`, `/groups` | Everyone | View saved members or list this chat's groups |
+| `/NAME [message]`, `/pinggroup NAME [message]` | Everyone | Mention current chat members belonging to the named group |
 | `/remove`, `/clean` | Chat admins; bot must be admin | Remove deleted accounts |
 | `/stop`, `/cancel` | Chat admins | Cancel only this chat's active job |
 | `/admins`, `/staff` | Everyone | List visible administrators |
@@ -22,6 +27,46 @@ HTML escaping, and cleanup are covered by offline tests.
 | `/help` | Everyone | Show command help |
 | `/source` | Everyone | Link to this repository |
 | `/version` | Everyone | Show the running version |
+
+### Named groups
+
+For example, create a group for people who play Bloti:
+
+```text
+/group create bloti
+/group add bloti @alice @bob
+/bloti Time to play!
+/group remove bloti @bob
+```
+
+To add or remove someone without a username, reply to their message with
+`/group add bloti` or `/group remove bloti`. You can also use numeric Telegram user IDs;
+`/group show bloti` lists saved names and IDs without notifying anyone. Explicit targets take
+precedence over the replied-to sender. Adding multiple people is atomic: if anyone cannot be
+matched to an active human in this chat, no members are added. Repeated additions do not duplicate
+members. A person can belong to multiple groups.
+
+Once a group exists, use its name as a command: `/bloti` or `/bloti Time to play!`.
+`/bloti@YourBotUsername` also works. `/pinggroup bloti` remains available.
+Built-in command names and aliases (such as `help`, `ping`, `all` and `stop`) are reserved,
+so saved groups cannot override the bot's commands. Unknown commands are ignored.
+
+Names are case-insensitive, contain 1–32 letters, numbers, underscores or hyphens, and are scoped
+to the current chat. Each chat can have up to 50 groups, each with up to 500 members; membership
+commands accept up to 50 targets at a time. Only admins can change groups; anyone can mention them.
+Groups work in group chats, not private chats or broadcast channels.
+
+Membership is saved by Telegram user ID. At mention time the bot checks current chat membership
+and skips people who left, bots and deleted accounts. Group mentions use batches of ten, share
+the existing per-chat job limit, and can be cancelled by an admin with `/stop`. An optional
+message can be up to 512 characters. Group membership does not change Telegram chat membership.
+For removals by username, use the username saved when the member was added; a reply or the saved
+ID still works after a username changes or a member leaves the chat.
+
+Groups persist in a SQLite database in the existing session volume, so container restarts and
+updates retain them. Back up the database along with the session volume; rolling back to an older
+bot version leaves the database intact. Chat migrations to a new Telegram chat ID do not
+automatically transfer saved groups.
 
 ## Configuration
 
@@ -41,6 +86,7 @@ Each required secret also supports a file-based form: `API_ID_FILE`, `API_HASH_F
 Optional settings:
 
 - `SESSION_PATH` (default `/var/lib/blotibot/blotibot`)
+- `GROUPS_PATH` (default `groups.sqlite3` next to `SESSION_PATH`; keep it on persistent storage)
 - `SOURCE_URL`
 - `APP_VERSION`
 - `MAX_ACTIVE_CHATS` (default `4`)
@@ -109,6 +155,7 @@ rotated.
 ## Source layout
 
 - `src/blotibot/service.py` contains command behavior.
+- `src/blotibot/groups.py` stores chat-scoped named groups in SQLite.
 - `src/blotibot/telethon_gateway.py` contains Telegram API operations.
 - `src/blotibot/router.py` maps messages to commands.
 - `tests/` contains offline behavioral tests.

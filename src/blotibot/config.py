@@ -38,6 +38,7 @@ class Settings:
     api_hash: str = field(repr=False)
     bot_token: str = field(repr=False)
     session_path: Path = Path("/var/lib/blotibot/blotibot")
+    groups_path: Path = Path("/var/lib/blotibot/groups.sqlite3")
     source_url: str = "https://github.com/rserag/bloti-bot"
     version: str = "0.1.0"
     max_active_chats: int = 4
@@ -75,6 +76,15 @@ class Settings:
             api_hash=_secret(env, "API_HASH"),
             bot_token=_secret(env, "BOT_TOKEN"),
             session_path=Path(env.get("SESSION_PATH", "/var/lib/blotibot/blotibot")),
+            groups_path=Path(
+                env.get(
+                    "GROUPS_PATH",
+                    str(
+                        Path(env.get("SESSION_PATH", "/var/lib/blotibot/blotibot")).parent
+                        / "groups.sqlite3"
+                    ),
+                )
+            ),
             source_url=env.get("SOURCE_URL", "https://github.com/rserag/bloti-bot"),
             version=env.get("APP_VERSION", "0.1.0"),
             max_active_chats=max_active_chats,

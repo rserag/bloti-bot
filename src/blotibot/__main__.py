@@ -10,6 +10,7 @@ from pathlib import Path
 from telethon import TelegramClient
 
 from .config import ConfigError, Settings
+from .groups import GroupStore
 from .router import register_handlers
 from .service import BotService
 from .telethon_gateway import TelethonGateway
@@ -40,6 +41,8 @@ async def maintain_heartbeat(
 async def run() -> None:
     settings = Settings.from_env()
     settings.session_path.parent.mkdir(parents=True, exist_ok=True)
+    groups = GroupStore(settings.groups_path)
+    await groups.initialize()
     client = TelegramClient(str(settings.session_path), settings.api_id, settings.api_hash)
     await client.start(bot_token=settings.bot_token)
     identity = await client.get_me()
@@ -54,8 +57,9 @@ async def run() -> None:
         version=settings.version,
         max_active_chats=settings.max_active_chats,
         message_delay_seconds=settings.message_delay_seconds,
+        groups=groups,
     )
-    register_handlers(client, service)
+    register_handlers(client, service, bot_username=identity.username)
     logging.getLogger(__name__).info("Bloti Bot started")
     heartbeat = asyncio.create_task(
         maintain_heartbeat(
