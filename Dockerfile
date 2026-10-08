@@ -33,7 +33,7 @@ ENV PYTHONPATH=/opt/python:/app/src \
     HEARTBEAT_MAX_AGE_SECONDS=60
 
 RUN python -m pip uninstall --yes pip \
-    && apk upgrade --no-cache libcrypto3 libssl3 \
+    && apk upgrade --no-cache libcrypto3 libssl3 libuuid \
     && addgroup -S -g 1000 blotibot \
     && adduser -S -D -H -u 1000 -h /nonexistent -s /sbin/nologin -G blotibot blotibot \
     && mkdir -p /app/src /var/lib/blotibot /run/blotibot \

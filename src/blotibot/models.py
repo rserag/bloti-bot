@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from html import escape
 
@@ -33,6 +34,7 @@ class CommandContext:
     is_private: bool = False
     is_channel_post: bool = False
     is_anonymous_admin: bool = False
+    reply_sender_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,8 +53,11 @@ ALIASES = {
 KNOWN_COMMANDS = {
     "admins",
     "bots",
+    "group",
+    "groups",
     "help",
     "ping",
+    "pinggroup",
     "remove",
     "source",
     "start",
@@ -61,7 +66,7 @@ KNOWN_COMMANDS = {
 }
 
 
-def parse_command(text: str | None) -> ParsedCommand | None:
+def parse_command(text: str | None, *, bot_username: str | None = None) -> ParsedCommand | None:
     if not text:
         return None
     stripped = text.strip()
@@ -70,8 +75,15 @@ def parse_command(text: str | None) -> ParsedCommand | None:
     command_parts = stripped.split(maxsplit=1)
     command_token = command_parts[0]
     argument = command_parts[1].strip() if len(command_parts) == 2 else ""
-    name = command_token[1:].split("@", maxsplit=1)[0].lower()
-    name = ALIASES.get(name, name)
-    if name not in KNOWN_COMMANDS:
+    token_parts = command_token[1:].split("@", maxsplit=1)
+    if len(token_parts) == 2:
+        recipient = token_parts[1]
+        if not re.fullmatch(r"[A-Za-z0-9_]+", recipient):
+            return None
+        if bot_username is not None and recipient.casefold() != bot_username.casefold():
+            return None
+    name = token_parts[0].casefold()
+    if not re.fullmatch(r"[\w-]{1,32}", name):
         return None
+    name = ALIASES.get(name, name)
     return ParsedCommand(name=name, argument=argument)
